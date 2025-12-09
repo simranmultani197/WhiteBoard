@@ -2,6 +2,7 @@ package com.whiteboard.client.ui;
 
 import javax.swing.*;
 import java.awt.*;
+import java.awt.AlphaComposite;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.util.ArrayList;
@@ -59,12 +60,13 @@ public class DrawCanvas extends JPanel {
                     currentX = e.getX();
                     currentY = e.getY();
                     
-                    if (currentTool == DrawingEvent.EventType.PEN) {
-                        // For pen, create continuous events
+                    if (currentTool == DrawingEvent.EventType.PEN || currentTool == DrawingEvent.EventType.ERASER) {
+                        // For pen and eraser, create continuous events while dragging
                         DrawingEvent event = new DrawingEvent(
-                            DrawingEvent.EventType.PEN,
+                            currentTool,
                             startX, startY, currentX, currentY,
-                            currentColor, strokeWidth, "local"
+                            currentTool == DrawingEvent.EventType.ERASER ? Color.WHITE : currentColor, 
+                            strokeWidth, "local"
                         );
                         addDrawingEvent(event);
                         
@@ -127,8 +129,8 @@ public class DrawCanvas extends JPanel {
             drawEvent(g2d, event);
         }
         
-        // Draw preview of current drawing if dragging
-        if (isDrawing && currentTool != DrawingEvent.EventType.PEN) {
+        // Draw preview of current drawing if dragging (for shapes only, not pen/eraser)
+        if (isDrawing && currentTool != DrawingEvent.EventType.PEN && currentTool != DrawingEvent.EventType.ERASER) {
             g2d.setColor(currentColor);
             g2d.setStroke(new BasicStroke(strokeWidth));
             drawShapePreview(g2d, currentTool, startX, startY, currentX, currentY);
@@ -156,9 +158,15 @@ public class DrawCanvas extends JPanel {
                 g2d.drawRect(x, y, width, height);
                 break;
             case ERASER:
-                // Eraser - draw white over area
+                // Eraser - draw white over area with composite mode for better erasing
+                g2d.setComposite(AlphaComposite.Clear);
+                g2d.setStroke(new BasicStroke(event.getStrokeWidth() * 2, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+                g2d.drawLine(event.getStartX(), event.getStartY(), 
+                           event.getEndX(), event.getEndY());
+                // Also draw white to cover any gaps
+                g2d.setComposite(AlphaComposite.SrcOver);
                 g2d.setColor(Color.WHITE);
-                g2d.setStroke(new BasicStroke(event.getStrokeWidth() * 2));
+                g2d.setStroke(new BasicStroke(event.getStrokeWidth() * 2, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
                 g2d.drawLine(event.getStartX(), event.getStartY(), 
                            event.getEndX(), event.getEndY());
                 break;
@@ -183,8 +191,12 @@ public class DrawCanvas extends JPanel {
                 g2d.drawRect(x, y, width, height);
                 break;
             case ERASER:
+                g2d.setComposite(AlphaComposite.Clear);
+                g2d.setStroke(new BasicStroke(strokeWidth * 2, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+                g2d.drawLine(x1, y1, x2, y2);
+                g2d.setComposite(AlphaComposite.SrcOver);
                 g2d.setColor(Color.WHITE);
-                g2d.setStroke(new BasicStroke(strokeWidth * 2));
+                g2d.setStroke(new BasicStroke(strokeWidth * 2, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
                 g2d.drawLine(x1, y1, x2, y2);
                 break;
         }

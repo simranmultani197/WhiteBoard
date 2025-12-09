@@ -8,108 +8,49 @@ import java.io.Serializable;
  * Serialized and sent over the network to synchronize drawings.
  */
 public class DrawingEvent implements Serializable {
-    
-    public enum EventType {
-        PEN, LINE, RECTANGLE, ERASER, CLEAR
-    }
-    
-    private EventType type;
-    private int startX, startY, endX, endY;
-    private Color color;
+
+    private String type; // DRAW, LINE, RECTANGLE, ERASE, CLEAR, COLOR
+    private int x1, y1, x2, y2;
+    private String color;
     private int strokeWidth;
-    private String clientId;
-    private long timestamp;
-    
-    // Default constructor
-    public DrawingEvent() {
-        this.timestamp = System.currentTimeMillis();
-    }
-    
-    // Full constructor
-    public DrawingEvent(EventType type, int startX, int startY, int endX, int endY, 
-                       Color color, int strokeWidth, String clientId) {
+
+    public DrawingEvent(String type, int x1, int y1, int x2, int y2, String color, int strokeWidth) {
         this.type = type;
-        this.startX = startX;
-        this.startY = startY;
-        this.endX = endX;
-        this.endY = endY;
+        this.x1 = x1;
+        this.y1 = y1;
+        this.x2 = x2;
+        this.y2 = y2;
         this.color = color;
         this.strokeWidth = strokeWidth;
-        this.clientId = clientId;
-        this.timestamp = System.currentTimeMillis();
     }
-    
-    // Getters and Setters
-    public EventType getType() {
+
+    public String serialize() {
+        return String.format("%s:%d:%d:%d:%d:%s:%d", type, x1, y1, x2, y2, color, strokeWidth);
+    }
+
+    public static DrawingEvent deserialize(String message) {
+        try {
+            String[] parts = message.split(":");
+            if (parts.length >= 7) {
+                return new DrawingEvent(
+                        parts[0],
+                        Integer.parseInt(parts[1]),
+                        Integer.parseInt(parts[2]),
+                        Integer.parseInt(parts[3]),
+                        Integer.parseInt(parts[4]),
+                        parts[5],
+                        Integer.parseInt(parts[6])
+                );
+            }
+        } catch (Exception e) {
+            System.err.println("Error deserializing event: " + e.getMessage());
+        }
+        return null;
+    }
+
+    public String getType() {
         return type;
     }
-    
-    public void setType(EventType type) {
-        this.type = type;
-    }
-    
-    public int getStartX() {
-        return startX;
-    }
-    
-    public void setStartX(int startX) {
-        this.startX = startX;
-    }
-    
-    public int getStartY() {
-        return startY;
-    }
-    
-    public void setStartY(int startY) {
-        this.startY = startY;
-    }
-    
-    public int getEndX() {
-        return endX;
-    }
-    
-    public void setEndX(int endX) {
-        this.endX = endX;
-    }
-    
-    public int getEndY() {
-        return endY;
-    }
-    
-    public void setEndY(int endY) {
-        this.endY = endY;
-    }
-    
-    public Color getColor() {
-        return color;
-    }
-    
-    public void setColor(Color color) {
-        this.color = color;
-    }
-    
-    public int getStrokeWidth() {
-        return strokeWidth;
-    }
-    
-    public void setStrokeWidth(int strokeWidth) {
-        this.strokeWidth = strokeWidth;
-    }
-    
-    public String getClientId() {
-        return clientId;
-    }
-    
-    public void setClientId(String clientId) {
-        this.clientId = clientId;
-    }
-    
-    public long getTimestamp() {
-        return timestamp;
-    }
-    
-    public void setTimestamp(long timestamp) {
-        this.timestamp = timestamp;
-    }
+
 }
 
