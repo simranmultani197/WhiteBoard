@@ -1,7 +1,5 @@
 package com.whiteboard.server;
 
-import com.whiteboard.common.model.DrawingEvent;
-
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.Set;
@@ -15,7 +13,7 @@ public class Session {
 
     private final String sessionName;
     private final Set<ClientHandler> clients = ConcurrentHashMap.newKeySet();
-    private final List<DrawingEvent> drawingHistory = new CopyOnWriteArrayList<>();
+    private final List<String> drawingHistory = new CopyOnWriteArrayList<>();
     
     public Session(String sessionName) {
         this.sessionName = sessionName;
@@ -27,8 +25,8 @@ public class Session {
         System.out.println("Client joined session '" + sessionName + "'. Total clients: " + clients.size());
 
         // Send drawing history to new client
-        for (DrawingEvent event : drawingHistory) {
-            client.sendMessage(event.serialize());
+        for (String event : drawingHistory) {
+            client.sendMessage(event);
         }
     }
 
@@ -38,12 +36,10 @@ public class Session {
     }
 
     public void broadcast(String message, ClientHandler sender) {
-        // Parse and store the drawing event
-        DrawingEvent event = DrawingEvent.deserialize(message);
-        if (event != null && !event.getType().equals("CLEAR")) {
-            drawingHistory.add(event);
-        } else if (event != null && event.getType().equals("CLEAR")) {
+        if (message.equals("CLEAR")) {
             drawingHistory.clear();
+        } else {
+            drawingHistory.add(message);
         }
 
         // Broadcast to all clients except sender

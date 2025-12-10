@@ -2,7 +2,8 @@ package com.whiteboard.database;
 
 import java.sql.Connection;
 import java.sql.SQLException;
-import com.whiteboard.common.model.DrawingEvent;
+import com.whiteboard.client.ui.DrawingShape;
+
 import java.util.List;
 
 /**
@@ -17,11 +18,11 @@ public class SessionDAO {
         this.connection = connection;
     }
     
-    public void saveSession(String sessionName, List<DrawingEvent> events) throws SQLException {
+    public void saveSession(String sessionName, List<DrawingShape> events) throws SQLException {
         // TODO: Implement session saving logic
     }
     
-    public List<DrawingEvent> loadSession(String sessionName) throws SQLException {
+    public List<DrawingShape> loadSession(String sessionName) throws SQLException {
         // TODO: Implement session loading logic
         return null;
     }

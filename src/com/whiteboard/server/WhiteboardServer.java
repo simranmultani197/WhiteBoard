@@ -9,8 +9,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
-import static jdk.internal.misc.VM.shutdown;
-
 /**
  * Main server class that manages client connections and drawing sessions.
  * Acts as the central hub for all communication between clients.
