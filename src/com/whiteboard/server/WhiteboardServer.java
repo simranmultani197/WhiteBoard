@@ -1,5 +1,7 @@
 package com.whiteboard.server;
 
+import com.whiteboard.database.SessionDao;
+
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -18,6 +20,21 @@ public class WhiteboardServer {
     private final Map<String, Session> sessions = new ConcurrentHashMap<>();
     private final ExecutorService threadPool = Executors.newCachedThreadPool();
     private volatile boolean running = true;
+    private SessionDao sessionDao;
+    private static final boolean ENABLE_DATABASE = true;
+
+    public WhiteboardServer() {
+        // Initialize database if enabled
+        if (ENABLE_DATABASE) {
+            try {
+                sessionDao = new SessionDao();
+            } catch (Exception e) {
+                System.err.println("Failed to initialize database: " + e.getMessage());
+                System.out.println("Running without database persistence.");
+            }
+        }
+    }
+
 
     public static void main(String[] args) {
         WhiteboardServer server = new WhiteboardServer();
@@ -52,7 +69,13 @@ public class WhiteboardServer {
     }
 
     public Session getOrCreateSession(String sessionName) {
-        return sessions.computeIfAbsent(sessionName, Session::new);
+        return sessions.computeIfAbsent(sessionName, name -> {
+            if (ENABLE_DATABASE && sessionDao != null) {
+                return new Session(name, sessionDao, true);
+            } else {
+                return new Session(name);
+            }
+        });
     }
 
     public void removeEmptySession(String sessionName) {

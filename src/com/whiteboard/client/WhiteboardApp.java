@@ -139,7 +139,7 @@ public class WhiteboardApp extends JFrame {
 
     private void showConnectionDialog() {
         JTextField serverField = new JTextField("localhost", 15);
-        JTextField portField = new JTextField("8080", 5);
+        JTextField portField = new JTextField("8000", 5);
         JTextField sessionField = new JTextField("default", 15);
 
         JPanel panel = new JPanel(new GridLayout(3, 2, 5, 5));
