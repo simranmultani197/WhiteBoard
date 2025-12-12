@@ -38,3 +38,5 @@ database.properties
 sessions/
 logs/
 
+
+bin/*

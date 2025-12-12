@@ -1,3 +1,5 @@
+![WhiteBoard Application](board.jpeg)
+
 # Real-Time Collaborative Whiteboard
 
 A real-time, multi-user drawing application that functions as a virtual whiteboard. Multiple users can connect to a shared session and draw simultaneously. All strokes, shapes, and actions performed by one user are broadcast in real time to all other participants in the same session.
