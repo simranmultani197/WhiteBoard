@@ -53,6 +53,11 @@ public class DrawCanvas extends JPanel {
         currentPoint = e.getPoint();
         drawing = true;
 
+        if (app.getCurrentTool().equals("SELECT")) {
+            drawing = false;
+            return;
+        }
+
         if (app.getCurrentTool().equals("PEN") || app.getCurrentTool().equals("ERASER")) {
             DrawingShape shape = new DrawingShape(
                     app.getCurrentTool(),
@@ -72,6 +77,10 @@ public class DrawCanvas extends JPanel {
 
         currentPoint = e.getPoint();
 
+        if (app.getCurrentTool().equals("SELECT")) {
+            return;
+        }
+
         if (app.getCurrentTool().equals("PEN") || app.getCurrentTool().equals("ERASER")) {
             DrawingShape shape = new DrawingShape(
                     app.getCurrentTool(),
@@ -85,6 +94,7 @@ public class DrawCanvas extends JPanel {
             repaint();
             sendShape(shape);
         } else {
+            // For other tools (LINE, RECTANGLE, CIRCLE, TRIANGLE), just repaint to show preview
             repaint();
         }
     }
@@ -94,7 +104,8 @@ public class DrawCanvas extends JPanel {
 
         currentPoint = e.getPoint();
 
-        if (app.getCurrentTool().equals("LINE") || app.getCurrentTool().equals("RECTANGLE")) {
+        if (app.getCurrentTool().equals("LINE") || app.getCurrentTool().equals("RECTANGLE") 
+            || app.getCurrentTool().equals("CIRCLE") || app.getCurrentTool().equals("TRIANGLE")) {
             DrawingShape shape = new DrawingShape(
                     app.getCurrentTool(),
                     startPoint.x, startPoint.y,
@@ -138,8 +149,9 @@ public class DrawCanvas extends JPanel {
             shape.draw(g2d);
         }
 
-        // Draw preview for LINE and RECTANGLE
-        if (drawing && (app.getCurrentTool().equals("LINE") || app.getCurrentTool().equals("RECTANGLE"))) {
+        // Draw preview for LINE, RECTANGLE, CIRCLE, and TRIANGLE
+        if (drawing && (app.getCurrentTool().equals("LINE") || app.getCurrentTool().equals("RECTANGLE")
+            || app.getCurrentTool().equals("CIRCLE") || app.getCurrentTool().equals("TRIANGLE"))) {
             g2d.setColor(app.getCurrentColor());
             g2d.setStroke(new BasicStroke(app.getStrokeWidth()));
 
@@ -151,6 +163,30 @@ public class DrawCanvas extends JPanel {
                 int width = Math.abs(currentPoint.x - startPoint.x);
                 int height = Math.abs(currentPoint.y - startPoint.y);
                 g2d.drawRect(x, y, width, height);
+            } else if (app.getCurrentTool().equals("CIRCLE")) {
+                int x = Math.min(startPoint.x, currentPoint.x);
+                int y = Math.min(startPoint.y, currentPoint.y);
+                int width = Math.abs(currentPoint.x - startPoint.x);
+                int height = Math.abs(currentPoint.y - startPoint.y);
+                // Use the larger dimension to make it a circle
+                int size = Math.max(width, height);
+                g2d.drawOval(x, y, size, size);
+            } else if (app.getCurrentTool().equals("TRIANGLE")) {
+                // Triangle: base at bottom (max y), top point at top (min y)
+                int topX = startPoint.x + (currentPoint.x - startPoint.x) / 2;  // Top point (middle x)
+                int topY = Math.min(startPoint.y, currentPoint.y);  // Top point
+                int bottomY = Math.max(startPoint.y, currentPoint.y);  // Bottom
+                int[] xPoints = {
+                    topX,  // Top point
+                    startPoint.x,  // Bottom left
+                    currentPoint.x   // Bottom right
+                };
+                int[] yPoints = {
+                    topY,  // Top point
+                    bottomY,  // Bottom left
+                    bottomY   // Bottom right
+                };
+                g2d.drawPolygon(xPoints, yPoints, 3);
             }
         }
     }

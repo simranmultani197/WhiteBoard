@@ -43,6 +43,29 @@ public class DrawingShape implements Serializable {
                 int height = Math.abs(y2 - y1);
                 g2d.drawRect(x, y, width, height);
                 break;
+            case "CIRCLE":
+                int cx = Math.min(x1, x2);
+                int cy = Math.min(y1, y2);
+                int cwidth = Math.abs(x2 - x1);
+                int cheight = Math.abs(y2 - y1);
+                // Use the larger dimension to make it a circle
+                int size = Math.max(cwidth, cheight);
+                g2d.drawOval(cx, cy, size, size);
+                break;
+            case "TRIANGLE":
+                // Draw triangle: top point at min y, base at max y
+                int[] xPoints = {
+                    x1,
+                    x2,
+                    x1 + (x2 - x1) / 2
+                };
+                int[] yPoints = {
+                    Math.max(y1, y2),
+                    Math.max(y1, y2),
+                    Math.min(y1, y2)
+                };
+                g2d.drawPolygon(xPoints, yPoints, 3);
+                break;
         }
     }
 

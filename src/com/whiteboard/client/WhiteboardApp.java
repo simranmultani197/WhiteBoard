@@ -1,11 +1,13 @@
 package com.whiteboard.client;
 
 import javax.swing.*;
+import javax.swing.Icon;
 import com.whiteboard.client.ui.DrawCanvas;
 import com.whiteboard.client.network.NetworkHandler;
 
 import java.awt.*;
 import java.awt.event.*;
+import java.awt.geom.*;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -25,7 +27,11 @@ public class WhiteboardApp extends JFrame {
     private JButton selectedToolButton;
     private JButton selectionButton;
     private JLabel coordinateLabel;
-    
+
+    // Status tracking variables
+    private String connectionStatus = "Not Connected";
+    private String mousePositionText = "Position: 0 x 0";
+
     // Dark theme color scheme
     private static final Color PRIMARY_BG = new Color(45, 45, 48);
     private static final Color SECONDARY_BG = new Color(37, 37, 38);
@@ -37,7 +43,7 @@ public class WhiteboardApp extends JFrame {
     private static final Color SELECTED_BG = new Color(80, 80, 80);
 
     public WhiteboardApp() {
-        setTitle("Whiteboard - " + currentUser);
+        setTitle("Digital Whiteboard - " + currentUser);
         setSize(1400, 900);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLayout(new BorderLayout());
@@ -93,6 +99,9 @@ public class WhiteboardApp extends JFrame {
 
         setLocationRelativeTo(null);
         setVisible(true);
+
+        // Trigger connection dialog on startup ---
+        SwingUtilities.invokeLater(this::showConnectionDialog);
     }
 
     private JPanel createTopPanel() {
@@ -110,6 +119,10 @@ public class WhiteboardApp extends JFrame {
             int confirm = JOptionPane.showConfirmDialog(this, "Create new whiteboard?", "New", JOptionPane.YES_NO_OPTION);
             if (confirm == JOptionPane.YES_OPTION) {
                 canvas.clear();
+                // --- NETWORK ADDITION: Send Clear Command ---
+                if (networkHandler != null && networkHandler.isConnected()) {
+                    networkHandler.sendDrawingEvent("CLEAR", 0, 0, 0, 0);
+                }
             }
         });
 
@@ -117,10 +130,15 @@ public class WhiteboardApp extends JFrame {
         JButton saveBtn = createFileButton("Save");
         JButton saveAsBtn = createFileButton("Save As");
 
+        // --- NETWORK ADDITION: Connect Button ---
+        JButton connectBtn = createFileButton("Connect");
+        connectBtn.addActionListener(e -> showConnectionDialog());
+
         fileButtonsPanel.add(newBtn);
         fileButtonsPanel.add(openBtn);
         fileButtonsPanel.add(saveBtn);
         fileButtonsPanel.add(saveAsBtn);
+        fileButtonsPanel.add(connectBtn);
 
         topPanel.add(fileButtonsPanel, BorderLayout.NORTH);
 
@@ -134,14 +152,7 @@ public class WhiteboardApp extends JFrame {
         selectionLabel.setFont(new Font("Segoe UI", Font.PLAIN, 10));
         selectionLabel.setForeground(TEXT_DARK);
         toolbar.add(selectionLabel);
-        selectionButton = new JButton("✏️");
-        selectionButton.setPreferredSize(new Dimension(35, 35));
-        selectionButton.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 16));
-        selectionButton.setToolTipText("Current Tool: Pen");
-        selectionButton.setBackground(BUTTON_BG);
-        selectionButton.setForeground(TEXT_DARK);
-        selectionButton.setBorder(BorderFactory.createLineBorder(ACCENT_COLOR, 1));
-        selectionButton.setFocusPainted(false);
+        selectionButton = createIconButton(createSelectionIcon(), "Selection Tool");
         selectionButton.setEnabled(false);
         toolbar.add(selectionButton);
         toolbar.add(createVerticalSeparator());
@@ -151,20 +162,19 @@ public class WhiteboardApp extends JFrame {
         toolsLabel.setFont(new Font("Segoe UI", Font.PLAIN, 10));
         toolsLabel.setForeground(TEXT_DARK);
         toolbar.add(toolsLabel);
-        
-        JButton penBtn = createToolbarButton("✏️", "Pen", "PEN");
-        JButton brushBtn = createToolbarButton("🖌️", "Brush", "PEN");
-        JButton eraserBtn = createToolbarButton("🧼", "Eraser", "ERASER");
-        
+
+        JButton penBtn = createToolbarButtonWithIcon(createPenIcon(), "Pen", "PEN");
+        JButton eraserBtn = createToolbarButtonWithIcon(createEraserIcon(), "Eraser", "ERASER");
+
         toolbar.add(penBtn);
-        toolbar.add(brushBtn);
         toolbar.add(eraserBtn);
-        
+
         // Set Pen as default selected tool
         selectedToolButton = penBtn;
         penBtn.setBackground(SELECTED_BG);
         currentTool = "PEN";
-        
+        selectionButton.setIcon(createPenIcon());
+
         toolbar.add(createVerticalSeparator());
 
         // Shapes section
@@ -172,10 +182,10 @@ public class WhiteboardApp extends JFrame {
         shapesLabel.setFont(new Font("Segoe UI", Font.PLAIN, 10));
         shapesLabel.setForeground(TEXT_DARK);
         toolbar.add(shapesLabel);
-        toolbar.add(createToolbarButton("—", "Line", "LINE"));
-        toolbar.add(createToolbarButton("□", "Rectangle", "RECTANGLE"));
-        toolbar.add(createToolbarButton("○", "Circle", "CIRCLE"));
-        toolbar.add(createToolbarButton("△", "Triangle", "TRIANGLE"));
+        toolbar.add(createToolbarButtonWithIcon(createLineIcon(), "Line", "LINE"));
+        toolbar.add(createToolbarButtonWithIcon(createRectangleIcon(), "Rectangle", "RECTANGLE"));
+        toolbar.add(createToolbarButtonWithIcon(createCircleIcon(), "Circle", "CIRCLE"));
+        toolbar.add(createToolbarButtonWithIcon(createTriangleIcon(), "Triangle", "TRIANGLE"));
         toolbar.add(createVerticalSeparator());
 
         // Colors section
@@ -183,17 +193,9 @@ public class WhiteboardApp extends JFrame {
         colorsLabel.setFont(new Font("Segoe UI", Font.PLAIN, 10));
         colorsLabel.setForeground(TEXT_DARK);
         toolbar.add(colorsLabel);
-        
+
         // Color picker button
-        JButton colorPickerBtn = new JButton("🎨");
-        colorPickerBtn.setPreferredSize(new Dimension(35, 35));
-        colorPickerBtn.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 16));
-        colorPickerBtn.setToolTipText("Choose Custom Color");
-        colorPickerBtn.setBackground(BUTTON_BG);
-        colorPickerBtn.setForeground(TEXT_DARK);
-        colorPickerBtn.setBorder(BorderFactory.createLineBorder(ACCENT_COLOR, 1));
-        colorPickerBtn.setFocusPainted(false);
-        colorPickerBtn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        JButton colorPickerBtn = createIconButton(createColorPickerIcon(), "Choose Custom Color");
         colorPickerBtn.addActionListener(e -> {
             Color newColor = JColorChooser.showDialog(this, "Choose Color", currentColor);
             if (newColor != null) {
@@ -201,25 +203,53 @@ public class WhiteboardApp extends JFrame {
             }
         });
         toolbar.add(colorPickerBtn);
-        
+
         // Color palette
         JPanel colorPalette = new JPanel(new GridLayout(2, 8, 2, 2));
         colorPalette.setBackground(SECONDARY_BG);
         Color[] colors = {
-            Color.BLACK, Color.DARK_GRAY, Color.GRAY, Color.RED,
-            new Color(200, 50, 50), new Color(255, 150, 0), Color.YELLOW, Color.GREEN,
-            Color.CYAN, Color.BLUE, new Color(128, 0, 128), Color.MAGENTA,
-            Color.WHITE, Color.LIGHT_GRAY, new Color(150, 75, 0), new Color(255, 200, 200)
+                Color.BLACK, new Color(64, 64, 64), Color.GRAY, Color.WHITE,
+                Color.RED, new Color(255, 165, 0), Color.YELLOW, new Color(144, 238, 144),
+                new Color(173, 216, 230), Color.BLUE, new Color(128, 0, 128), Color.MAGENTA,
+                new Color(165, 42, 42), new Color(255, 192, 203), new Color(128, 128, 128), new Color(128, 128, 128)
         };
-        for (Color c : colors) {
-            JButton colorBtn = new JButton();
-            colorBtn.setPreferredSize(new Dimension(18, 18));
+
+        JButton[] colorButtons = new JButton[16];
+        for (int i = 0; i < colors.length; i++) {
+            Color c = colors[i];
+            JButton colorBtn = new JButton() {
+                @Override
+                protected void paintComponent(Graphics g) {
+                    Graphics2D g2d = (Graphics2D) g.create();
+                    g2d.setColor(getBackground());
+                    g2d.fillRect(0, 0, getWidth(), getHeight());
+                    g2d.dispose();
+                }
+            };
+            colorBtn.setPreferredSize(new Dimension(20, 20));
+            colorBtn.setMinimumSize(new Dimension(20, 20));
+            colorBtn.setMaximumSize(new Dimension(20, 20));
             colorBtn.setBackground(c);
+            colorBtn.setOpaque(true);
             colorBtn.setBorder(BorderFactory.createLineBorder(Color.DARK_GRAY, 1));
             colorBtn.setFocusPainted(false);
-            colorBtn.addActionListener(e -> currentColor = c);
+            colorBtn.setContentAreaFilled(true);
+            final int index = i;
+            colorBtn.addActionListener(e -> {
+                currentColor = c;
+                for (JButton btn : colorButtons) {
+                    if (btn != null) btn.setBorder(BorderFactory.createLineBorder(Color.DARK_GRAY, 1));
+                }
+                if (index < colorButtons.length && colorButtons[index] != null) {
+                    colorButtons[index].setBorder(BorderFactory.createLineBorder(Color.CYAN, 2));
+                }
+            });
+            colorButtons[i] = colorBtn;
             colorPalette.add(colorBtn);
         }
+        colorButtons[8].setBorder(BorderFactory.createLineBorder(Color.CYAN, 2));
+        currentColor = colors[8];
+
         toolbar.add(colorPalette);
 
         topPanel.add(toolbar, BorderLayout.CENTER);
@@ -227,18 +257,236 @@ public class WhiteboardApp extends JFrame {
         return topPanel;
     }
 
+    // --- NETWORK METHODS START ---
+
+    private void showConnectionDialog() {
+        JTextField serverField = new JTextField("localhost", 15);
+        JTextField portField = new JTextField("8000", 5);
+        JTextField sessionField = new JTextField("default", 15);
+
+        JPanel panel = new JPanel(new GridLayout(3, 2, 5, 5));
+        panel.add(new JLabel("Server:"));
+        panel.add(serverField);
+        panel.add(new JLabel("Port:"));
+        panel.add(portField);
+        panel.add(new JLabel("Session:"));
+        panel.add(sessionField);
+
+        int result = JOptionPane.showConfirmDialog(this, panel,
+                "Connect to Whiteboard Server", JOptionPane.OK_CANCEL_OPTION);
+
+        if (result == JOptionPane.OK_OPTION) {
+            String server = serverField.getText().trim();
+            int port;
+            try {
+                port = Integer.parseInt(portField.getText().trim());
+            } catch (NumberFormatException e) {
+                JOptionPane.showMessageDialog(this, "Invalid port number!");
+                return;
+            }
+            String session = sessionField.getText().trim();
+
+            if (server.isEmpty() || session.isEmpty()) {
+                JOptionPane.showMessageDialog(this, "Server and Session cannot be empty!");
+                return;
+            }
+
+            connectToServer(server, port, session);
+        }
+    }
+
+    private void connectToServer(String server, int port, String session) {
+        try {
+            networkHandler = new NetworkHandler(server, port, session, this);
+            new Thread(networkHandler).start();
+            updateStatus("Connected to session: " + session);
+        } catch (Exception e) {
+            JOptionPane.showMessageDialog(this,
+                    "Failed to connect: " + e.getMessage(),
+                    "Connection Error",
+                    JOptionPane.ERROR_MESSAGE);
+            updateStatus("Connection failed");
+        }
+    }
+    // --- NETWORK METHODS END ---
 
 
-    private JButton createToolbarButton(String icon, String tooltip, String tool) {
+    // Icon creation methods (Keeping all your custom icons)
+    private Icon createPenIcon() {
+        return new Icon() {
+            @Override
+            public void paintIcon(Component c, Graphics g, int x, int y) {
+                Graphics2D g2d = (Graphics2D) g.create();
+                g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2d.setColor(TEXT_DARK);
+                g2d.setStroke(new BasicStroke(2.5f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+                g2d.drawLine(x + 8, y + 20, x + 22, y + 8);
+                g2d.setStroke(new BasicStroke(1.5f));
+                g2d.drawLine(x + 22, y + 8, x + 25, y + 5);
+                g2d.dispose();
+            }
+            @Override
+            public int getIconWidth() { return 32; }
+            @Override
+            public int getIconHeight() { return 32; }
+        };
+    }
+
+    private Icon createEraserIcon() {
+        return new Icon() {
+            @Override
+            public void paintIcon(Component c, Graphics g, int x, int y) {
+                Graphics2D g2d = (Graphics2D) g.create();
+                g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2d.setColor(new Color(180, 180, 180));
+                g2d.fillRect(x + 8, y + 10, 16, 10);
+                g2d.setColor(TEXT_DARK);
+                g2d.setStroke(new BasicStroke(1));
+                g2d.drawRect(x + 8, y + 10, 16, 10);
+                g2d.setColor(new Color(150, 100, 50));
+                g2d.fillRect(x + 20, y + 10, 3, 10);
+                g2d.dispose();
+            }
+            @Override
+            public int getIconWidth() { return 32; }
+            @Override
+            public int getIconHeight() { return 32; }
+        };
+    }
+
+    private Icon createLineIcon() {
+        return new Icon() {
+            @Override
+            public void paintIcon(Component c, Graphics g, int x, int y) {
+                Graphics2D g2d = (Graphics2D) g.create();
+                g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2d.setColor(TEXT_DARK);
+                g2d.setStroke(new BasicStroke(2.5f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+                g2d.drawLine(x + 6, y + 16, x + 26, y + 16);
+                g2d.dispose();
+            }
+            @Override
+            public int getIconWidth() { return 32; }
+            @Override
+            public int getIconHeight() { return 32; }
+        };
+    }
+
+    private Icon createRectangleIcon() {
+        return new Icon() {
+            @Override
+            public void paintIcon(Component c, Graphics g, int x, int y) {
+                Graphics2D g2d = (Graphics2D) g.create();
+                g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2d.setColor(TEXT_DARK);
+                g2d.setStroke(new BasicStroke(2));
+                g2d.drawRect(x + 8, y + 8, 16, 16);
+                g2d.dispose();
+            }
+            @Override
+            public int getIconWidth() { return 32; }
+            @Override
+            public int getIconHeight() { return 32; }
+        };
+    }
+
+    private Icon createCircleIcon() {
+        return new Icon() {
+            @Override
+            public void paintIcon(Component c, Graphics g, int x, int y) {
+                Graphics2D g2d = (Graphics2D) g.create();
+                g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2d.setColor(TEXT_DARK);
+                g2d.setStroke(new BasicStroke(2));
+                g2d.drawOval(x + 8, y + 8, 16, 16);
+                g2d.dispose();
+            }
+            @Override
+            public int getIconWidth() { return 32; }
+            @Override
+            public int getIconHeight() { return 32; }
+        };
+    }
+
+    private Icon createTriangleIcon() {
+        return new Icon() {
+            @Override
+            public void paintIcon(Component c, Graphics g, int x, int y) {
+                Graphics2D g2d = (Graphics2D) g.create();
+                g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2d.setColor(TEXT_DARK);
+                g2d.setStroke(new BasicStroke(2));
+                int[] xPoints = {x + 16, x + 8, x + 24};
+                int[] yPoints = {y + 8, y + 22, y + 22};
+                g2d.drawPolygon(xPoints, yPoints, 3);
+                g2d.dispose();
+            }
+            @Override
+            public int getIconWidth() { return 32; }
+            @Override
+            public int getIconHeight() { return 32; }
+        };
+    }
+
+    private Icon createSelectionIcon() {
+        return new Icon() {
+            @Override
+            public void paintIcon(Component c, Graphics g, int x, int y) {
+                Graphics2D g2d = (Graphics2D) g.create();
+                g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2d.setColor(TEXT_DARK);
+                g2d.setStroke(new BasicStroke(2));
+                g2d.drawLine(x + 8, y + 8, x + 22, y + 22);
+                g2d.drawLine(x + 22, y + 22, x + 18, y + 22);
+                g2d.drawLine(x + 22, y + 22, x + 22, y + 18);
+                g2d.dispose();
+            }
+            @Override
+            public int getIconWidth() { return 32; }
+            @Override
+            public int getIconHeight() { return 32; }
+        };
+    }
+
+    private Icon createColorPickerIcon() {
+        return new Icon() {
+            @Override
+            public void paintIcon(Component c, Graphics g, int x, int y) {
+                Graphics2D g2d = (Graphics2D) g.create();
+                g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2d.setColor(Color.RED);
+                g2d.fillOval(x + 8, y + 8, 8, 8);
+                g2d.setColor(Color.GREEN);
+                g2d.fillOval(x + 18, y + 8, 8, 8);
+                g2d.setColor(Color.BLUE);
+                g2d.fillOval(x + 13, y + 16, 8, 8);
+                g2d.setColor(TEXT_DARK);
+                g2d.setStroke(new BasicStroke(1));
+                g2d.drawOval(x + 8, y + 8, 8, 8);
+                g2d.drawOval(x + 18, y + 8, 8, 8);
+                g2d.drawOval(x + 13, y + 16, 8, 8);
+            }
+            @Override
+            public int getIconWidth() { return 32; }
+            @Override
+            public int getIconHeight() { return 32; }
+        };
+    }
+
+    private JButton createIconButton(Icon icon, String tooltip) {
         JButton btn = new JButton(icon);
         btn.setPreferredSize(new Dimension(35, 35));
-        btn.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 16));
         btn.setToolTipText(tooltip);
         btn.setBackground(BUTTON_BG);
         btn.setForeground(TEXT_DARK);
         btn.setBorder(BorderFactory.createLineBorder(ACCENT_COLOR, 1));
         btn.setFocusPainted(false);
         btn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        return btn;
+    }
+
+    private JButton createToolbarButtonWithIcon(Icon icon, String tooltip, String tool) {
+        JButton btn = createIconButton(icon, tooltip);
 
         btn.addMouseListener(new MouseAdapter() {
             @Override
@@ -263,10 +511,9 @@ public class WhiteboardApp extends JFrame {
             selectedToolButton = btn;
             btn.setBackground(SELECTED_BG);
             setTool(tool);
-            
-            // Update selection button icon and tooltip
+
             if (selectionButton != null) {
-                selectionButton.setText(icon);
+                selectionButton.setIcon(icon);
                 selectionButton.setToolTipText("Current Tool: " + tooltip);
             }
         });
@@ -287,8 +534,8 @@ public class WhiteboardApp extends JFrame {
         btn.setBackground(BUTTON_BG);
         btn.setForeground(TEXT_DARK);
         btn.setBorder(BorderFactory.createCompoundBorder(
-            BorderFactory.createLineBorder(ACCENT_COLOR, 1),
-            BorderFactory.createEmptyBorder(5, 15, 5, 15)
+                BorderFactory.createLineBorder(ACCENT_COLOR, 1),
+                BorderFactory.createEmptyBorder(5, 15, 5, 15)
         ));
         btn.setFocusPainted(false);
         btn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
@@ -314,7 +561,6 @@ public class WhiteboardApp extends JFrame {
         usersPanel.setPreferredSize(new Dimension(200, 0));
         usersPanel.setBorder(BorderFactory.createMatteBorder(0, 1, 0, 0, ACCENT_COLOR));
 
-        // Title
         JLabel titleLabel = new JLabel("Online Users");
         titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 13));
         titleLabel.setForeground(TEXT_DARK);
@@ -322,7 +568,6 @@ public class WhiteboardApp extends JFrame {
         titleLabel.setBorder(BorderFactory.createEmptyBorder(15, 10, 15, 10));
         usersPanel.add(titleLabel, BorderLayout.NORTH);
 
-        // Users list
         usersListModel = new DefaultListModel<>();
         for (String user : connectedUsers) {
             if (user.equals(currentUser)) {
@@ -346,7 +591,6 @@ public class WhiteboardApp extends JFrame {
         usersScroll.getViewport().setBackground(PANEL_BG);
         usersPanel.add(usersScroll, BorderLayout.CENTER);
 
-        // User count label
         JLabel countLabel = new JLabel(connectedUsers.size() + " user(s) online");
         countLabel.setFont(new Font("Segoe UI", Font.PLAIN, 11));
         countLabel.setForeground(TEXT_DARK);
@@ -362,12 +606,12 @@ public class WhiteboardApp extends JFrame {
         bottomPanel.setBackground(PANEL_BG);
         bottomPanel.setBorder(BorderFactory.createMatteBorder(1, 0, 0, 0, ACCENT_COLOR));
 
-        // Coordinate bar
         JPanel coordPanel = new JPanel(new BorderLayout());
         coordPanel.setBackground(PANEL_BG);
         coordPanel.setBorder(BorderFactory.createEmptyBorder(5, 10, 5, 10));
 
-        coordinateLabel = new JLabel("Position: 0 x 0");
+        // Initial label state
+        coordinateLabel = new JLabel(connectionStatus + " | " + mousePositionText);
         coordinateLabel.setFont(new Font("Segoe UI", Font.PLAIN, 11));
         coordinateLabel.setForeground(TEXT_DARK);
         coordPanel.add(coordinateLabel, BorderLayout.WEST);
@@ -384,22 +628,27 @@ public class WhiteboardApp extends JFrame {
 
         bottomPanel.add(coordPanel, BorderLayout.CENTER);
 
-        // Mouse listener for coordinates
+        // Mouse listener for coordinates (Updated to preserve status)
         canvas.addMouseMotionListener(new MouseMotionAdapter() {
             @Override
             public void mouseMoved(MouseEvent e) {
-                coordinateLabel.setText(String.format("Position: %d x %d", e.getX(), e.getY()));
+                mousePositionText = String.format("Position: %d x %d", e.getX(), e.getY());
+                updateCombinedStatusLabel();
             }
             @Override
             public void mouseDragged(MouseEvent e) {
-                coordinateLabel.setText(String.format("Position: %d x %d", e.getX(), e.getY()));
+                mousePositionText = String.format("Position: %d x %d", e.getX(), e.getY());
+                updateCombinedStatusLabel();
             }
         });
 
         return bottomPanel;
     }
 
-
+    // Helper to keep status and coords cleanly separated
+    private void updateCombinedStatusLabel() {
+        coordinateLabel.setText(connectionStatus + " | " + mousePositionText);
+    }
 
     public void setTool(String tool) {
         this.currentTool = tool;
@@ -425,15 +674,15 @@ public class WhiteboardApp extends JFrame {
         return canvas;
     }
 
+    // --- NETWORK ADDITION: Implementation of updateStatus ---
     public void updateStatus(String message) {
         SwingUtilities.invokeLater(() -> {
-            // Status updates can be shown in a status label if needed
+            this.connectionStatus = message;
+            updateCombinedStatusLabel();
         });
     }
 
     public static void main(String[] args) {
         SwingUtilities.invokeLater(WhiteboardApp::new);
     }
-
 }
-
