@@ -81,12 +81,11 @@ WhiteBoard/
 ### Running the Application
 
 1. **Start the Server:**
-   - Right-click `WhiteboardServer.java` → Run As → Java Application
-   - Or run: `java -cp "bin:lib/mysql-connector-j-8.0.33.jar" com.whiteboard.server.WhiteboardServer`
+   - Run: `javac -cp "lib/mysql-connector-j-8.0.33.jar" -d bin $(find src -name "*.java"`
+   - Run: `java -cp "bin:lib/mysql-connector-j-8.0.33.jar" com.whiteboard.server.WhiteboardServer`
 
 2. **Start the Client:**
-   - Right-click `WhiteboardApp.java` → Run As → Java Application
-   - Or run: `java -cp "bin:lib/mysql-connector-j-8.0.33.jar" com.whiteboard.client.WhiteboardApp`
+   - Run: `java -cp "bin:lib/mysql-connector-j-8.0.33.jar" com.whiteboard.client.WhiteboardAp`
 
 ## System Architecture
 

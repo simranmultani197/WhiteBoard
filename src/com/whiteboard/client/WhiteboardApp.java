@@ -9,6 +9,7 @@ import java.awt.*;
 import java.awt.event.*;
 import java.awt.geom.*;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -22,11 +23,11 @@ public class WhiteboardApp extends JFrame {
     private Color currentColor = Color.BLACK;
     private int strokeWidth = 3;
     private String currentUser = "HostClient_" + (System.currentTimeMillis() % 10000);
-    private List<String> connectedUsers = new ArrayList<>();
     private DefaultListModel<String> usersListModel;
     private JButton selectedToolButton;
     private JButton selectionButton;
     private JLabel coordinateLabel;
+    private String username;
 
     // Status tracking variables
     private String connectionStatus = "Not Connected";
@@ -48,11 +49,8 @@ public class WhiteboardApp extends JFrame {
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLayout(new BorderLayout());
         getContentPane().setBackground(PRIMARY_BG);
-
-        // Initialize users list
-        connectedUsers.add(currentUser);
-        connectedUsers.add("User_3112");
-        connectedUsers.add("Designer_89");
+        username = "User_" + (System.currentTimeMillis() % 10000);
+        setTitle("Digital Whiteboard - " + username);
 
         // Create main container
         JPanel mainContainer = new JPanel(new BorderLayout());
@@ -121,14 +119,12 @@ public class WhiteboardApp extends JFrame {
                 canvas.clear();
                 // --- NETWORK ADDITION: Send Clear Command ---
                 if (networkHandler != null && networkHandler.isConnected()) {
-                    networkHandler.sendDrawingEvent("CLEAR", 0, 0, 0, 0);
+                    networkHandler.sendClearEvent();
                 }
             }
         });
 
         JButton openBtn = createFileButton("Open");
-        JButton saveBtn = createFileButton("Save");
-        JButton saveAsBtn = createFileButton("Save As");
 
         // --- NETWORK ADDITION: Connect Button ---
         JButton connectBtn = createFileButton("Connect");
@@ -136,8 +132,6 @@ public class WhiteboardApp extends JFrame {
 
         fileButtonsPanel.add(newBtn);
         fileButtonsPanel.add(openBtn);
-        fileButtonsPanel.add(saveBtn);
-        fileButtonsPanel.add(saveAsBtn);
         fileButtonsPanel.add(connectBtn);
 
         topPanel.add(fileButtonsPanel, BorderLayout.NORTH);
@@ -263,14 +257,17 @@ public class WhiteboardApp extends JFrame {
         JTextField serverField = new JTextField("localhost", 15);
         JTextField portField = new JTextField("8000", 5);
         JTextField sessionField = new JTextField("default", 15);
+        JTextField usernameField = new JTextField(username, 15);
 
-        JPanel panel = new JPanel(new GridLayout(3, 2, 5, 5));
+        JPanel panel = new JPanel(new GridLayout(4, 2, 5, 5));
         panel.add(new JLabel("Server:"));
         panel.add(serverField);
         panel.add(new JLabel("Port:"));
         panel.add(portField);
         panel.add(new JLabel("Session:"));
         panel.add(sessionField);
+        panel.add(new JLabel("Username:"));
+        panel.add(usernameField);
 
         int result = JOptionPane.showConfirmDialog(this, panel,
                 "Connect to Whiteboard Server", JOptionPane.OK_CANCEL_OPTION);
@@ -285,19 +282,22 @@ public class WhiteboardApp extends JFrame {
                 return;
             }
             String session = sessionField.getText().trim();
+            String enteredUsername = usernameField.getText().trim();
 
-            if (server.isEmpty() || session.isEmpty()) {
-                JOptionPane.showMessageDialog(this, "Server and Session cannot be empty!");
+            if (server.isEmpty() || session.isEmpty() || enteredUsername.isEmpty()) {
+                JOptionPane.showMessageDialog(this, "All fields are required!");
                 return;
             }
 
+            username = enteredUsername;
+            setTitle("Digital Whiteboard - " + username);
             connectToServer(server, port, session);
         }
     }
 
     private void connectToServer(String server, int port, String session) {
         try {
-            networkHandler = new NetworkHandler(server, port, session, this);
+            networkHandler = new NetworkHandler(server, port, session, username,this);
             new Thread(networkHandler).start();
             updateStatus("Connected to session: " + session);
         } catch (Exception e) {
@@ -310,6 +310,45 @@ public class WhiteboardApp extends JFrame {
     }
     // --- NETWORK METHODS END ---
 
+    public void updateUserList(String[] users) {
+        System.out.println("Received user list: " + Arrays.toString(users));
+        SwingUtilities.invokeLater(() -> {
+            usersListModel.clear();
+            for (String user : users) {
+                System.out.println("Adding user: " + user);
+                if (user.equals(username)) {
+                    usersListModel.addElement(user + " (You)");
+                } else {
+                    usersListModel.addElement(user);
+                }
+            }
+            System.out.println("Total users in list: " + usersListModel.size());
+            updateUserCount();
+        });
+    }
+
+    public void addUser(String user) {
+        System.out.println("Adding new user: " + user);
+        SwingUtilities.invokeLater(() -> {
+            if (user.equals(username)) {
+                return;
+            } else {
+                usersListModel.addElement(user);
+            }
+            updateUserCount();
+        });
+    }
+
+    public void removeUser(String user) {
+        SwingUtilities.invokeLater(() -> {
+            String userToRemove = user.equals(username) ? user + " (You)" : user;
+            usersListModel.removeElement(userToRemove);
+            updateUserCount();
+        });
+    }
+
+    private void updateUserCount() {
+    }
 
     // Icon creation methods (Keeping all your custom icons)
     private Icon createPenIcon() {
@@ -569,14 +608,6 @@ public class WhiteboardApp extends JFrame {
         usersPanel.add(titleLabel, BorderLayout.NORTH);
 
         usersListModel = new DefaultListModel<>();
-        for (String user : connectedUsers) {
-            if (user.equals(currentUser)) {
-                usersListModel.addElement(user + " (Current Editor)");
-            } else {
-                usersListModel.addElement(user);
-            }
-        }
-
         JList<String> usersList = new JList<>(usersListModel);
         usersList.setFont(new Font("Segoe UI", Font.PLAIN, 12));
         usersList.setBackground(PANEL_BG);
@@ -591,7 +622,7 @@ public class WhiteboardApp extends JFrame {
         usersScroll.getViewport().setBackground(PANEL_BG);
         usersPanel.add(usersScroll, BorderLayout.CENTER);
 
-        JLabel countLabel = new JLabel(connectedUsers.size() + " user(s) online");
+        JLabel countLabel = new JLabel("0 user(s) online");
         countLabel.setFont(new Font("Segoe UI", Font.PLAIN, 11));
         countLabel.setForeground(TEXT_DARK);
         countLabel.setHorizontalAlignment(SwingConstants.CENTER);

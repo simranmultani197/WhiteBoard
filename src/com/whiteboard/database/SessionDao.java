@@ -252,6 +252,21 @@ public class SessionDao {
         return null;
     }
 
+    public boolean deleteDrawingById(String shapeId) {
+        Connection conn = dbConnection.getConnection();
+        String sql = "DELETE FROM drawings WHERE drawing_data LIKE ?";
+
+        try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setString(1, shapeId + ":%");  // Match shape ID at start of drawing_data
+            int rowsAffected = pstmt.executeUpdate();
+            System.out.println("Deleted " + rowsAffected + " drawing(s) with ID: " + shapeId);
+            return rowsAffected > 0;
+        } catch (SQLException e) {
+            System.err.println("Error deleting drawing by ID: " + e.getMessage());
+            return false;
+        }
+    }
+
     /**
      * Inner class to hold session metadata
      */

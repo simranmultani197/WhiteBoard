@@ -11,7 +11,7 @@ import java.util.concurrent.*;
 public class Session {
 
     private final String sessionName;
-    private final Set<ClientHandler> clients = ConcurrentHashMap.newKeySet();
+    private final Map<String, ClientHandler> clients = new ConcurrentHashMap<>();
     private final List<String> drawingHistory = new CopyOnWriteArrayList<>();
     private final SessionDao sessionDao;
     private final boolean persistToDatabase;
@@ -57,19 +57,49 @@ public class Session {
         }
     }
 
-    public synchronized void addClient(ClientHandler client) {
-        clients.add(client);
-        System.out.println("Client joined session '" + sessionName + "'. Total clients: " + clients.size());
+    public synchronized void addClient(ClientHandler client, String username) {
+        System.out.println("Adding client: " + username);
+        clients.put(username, client);
+        System.out.println("Total clients now: " + clients.size());
 
         // Send drawing history to new client
         for (String event : drawingHistory) {
             client.sendMessage(event);
         }
+
+        // Send current user list to new client
+        System.out.println("Sending user list to new client");
+        sendUserList(client);
+
+        // Broadcast to all clients that new user joined
+        System.out.println("Broadcasting user join");
+        broadcastUserJoin(username);
     }
 
-    public synchronized void removeClient(ClientHandler client) {
-        clients.remove(client);
+    public synchronized void removeClient(String username) {
+        clients.remove(username);
         System.out.println("Client left session '" + sessionName + "'. Remaining clients: " + clients.size());
+
+        broadcastUserLeave(username);
+    }
+
+    private void sendUserList(ClientHandler client) {
+        String userList = "USER_LIST:" + String.join(",", clients.keySet());
+        client.sendMessage(userList);
+    }
+
+    private void broadcastUserJoin(String username) {
+        String message = "USER_JOIN:" + username;
+        for (ClientHandler client : clients.values()) {
+            client.sendMessage(message);
+        }
+    }
+
+    private void broadcastUserLeave(String username) {
+        String message = "USER_LEAVE:" + username;
+        for (ClientHandler client : clients.values()) {
+            client.sendMessage(message);
+        }
     }
 
     /**
@@ -90,6 +120,21 @@ public class Session {
                     System.err.println("Error clearing session from database: " + e.getMessage());
                 }
             }
+        } else if (message.startsWith("DELETE:")) {
+            // Handle delete event
+            String shapeId = message.substring(7);
+
+            // Remove from memory
+            drawingHistory.removeIf(drawing -> drawing.startsWith(shapeId + ":"));
+
+            // Remove from database
+            if (persistToDatabase && sessionDao != null) {
+                try {
+                    sessionDao.deleteDrawingById(shapeId);
+                } catch (Exception e) {
+                    System.err.println("Error deleting drawing from database: " + e.getMessage());
+                }
+            }
         } else {
             // Add to memory
             drawingHistory.add(message);
@@ -105,7 +150,7 @@ public class Session {
         }
 
         // Broadcast to all clients except sender
-        for (ClientHandler client : clients) {
+        for (ClientHandler client : clients.values()) {
             if (client != sender) {
                 client.sendMessage(message);
             }
@@ -140,5 +185,9 @@ public class Session {
 
     public int getDrawingCount() {
         return drawingHistory.size();
+    }
+
+    public Set<String> getUsernames() {
+        return clients.keySet();
     }
 }

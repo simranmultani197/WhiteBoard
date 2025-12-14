@@ -20,18 +20,20 @@ public class NetworkHandler implements Runnable {
     private PrintWriter out;
     private WhiteboardApp app;
     private String sessionName;
+    private String username;
     private volatile boolean connected = false;
 
-    public NetworkHandler(String server, int port, String sessionName, WhiteboardApp app) throws IOException {
+    public NetworkHandler(String server, int port, String sessionName, String username, WhiteboardApp app) throws IOException {
         this.app = app;
         this.sessionName = sessionName;
+        this.username = username;
         this.socket = new Socket(server, port);
         this.in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
         this.out = new PrintWriter(socket.getOutputStream(), true);
         this.connected = true;
 
         // Send join request
-        out.println("JOIN:" + sessionName);
+        out.println("JOIN:" + sessionName + ":" + username);
     }
 
     @Override
@@ -39,10 +41,28 @@ public class NetworkHandler implements Runnable {
         try {
             String message;
             while (connected && (message = in.readLine()) != null) {
+                System.out.println("Received message: " + message);
                 if (message.startsWith("JOINED:")) {
                     System.out.println("Successfully joined session: " + message.substring(7));
                 } else if (message.equals("CLEAR")) {
                     app.getCanvas().clear();
+                } else if (message.startsWith("DELETE:")) {
+                    // Handle delete event
+                    String shapeId = message.substring(7);
+                    app.getCanvas().removeShapeById(shapeId);
+                } else if (message.startsWith("USER_LIST:")) {
+                    // Received user list from server
+                    String userListStr = message.substring(10);
+                    String[] users = userListStr.split(",");
+                    app.updateUserList(users);
+                } else if (message.startsWith("USER_JOIN:")) {
+                    // New user joined
+                    String newUser = message.substring(10);
+                    app.addUser(newUser);
+                } else if (message.startsWith("USER_LEAVE:")) {
+                    // User left
+                    String leftUser = message.substring(11);
+                    app.removeUser(leftUser);
                 } else {
                     // Drawing event from another user
                     DrawingShape shape = DrawingShape.deserialize(message);
@@ -65,6 +85,18 @@ public class NetworkHandler implements Runnable {
         if (connected && out != null) {
             DrawingShape shape = new DrawingShape(type, x1, y1, x2, y2, app.getCurrentColor(), app.getStrokeWidth());
             out.println(shape.serialize());
+        }
+    }
+
+    public void sendDeleteEvent(String shapeId) {
+        if (connected && out != null) {
+            out.println("DELETE:" + shapeId);
+        }
+    }
+
+    public void sendClearEvent() {
+        if (connected && out != null) {
+            out.println("CLEAR");
         }
     }
 
