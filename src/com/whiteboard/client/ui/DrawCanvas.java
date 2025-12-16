@@ -68,8 +68,7 @@ public class DrawCanvas extends JPanel {
                     startPoint.x, startPoint.y,
                     currentPoint.x, currentPoint.y,
                     app.getCurrentColor(),
-                    app.getStrokeWidth()
-            );
+                    app.getStrokeWidth());
             shapes.add(shape);
             repaint();
             sendShape(shape);
@@ -77,7 +76,8 @@ public class DrawCanvas extends JPanel {
     }
 
     private void handleMouseDragged(MouseEvent e) {
-        if (!drawing) return;
+        if (!drawing)
+            return;
 
         currentPoint = e.getPoint();
 
@@ -96,20 +96,21 @@ public class DrawCanvas extends JPanel {
                     startPoint.x, startPoint.y,
                     currentPoint.x, currentPoint.y,
                     app.getCurrentColor(),
-                    app.getStrokeWidth()
-            );
+                    app.getStrokeWidth());
             shapes.add(shape);
             startPoint = currentPoint;
             repaint();
             sendShape(shape);
         } else {
-            // For other tools (LINE, RECTANGLE, CIRCLE, TRIANGLE), just repaint to show preview
+            // For other tools (LINE, RECTANGLE, CIRCLE, TRIANGLE), just repaint to show
+            // preview
             repaint();
         }
     }
 
     private void handleMouseReleased(MouseEvent e) {
-        if (!drawing) return;
+        if (!drawing)
+            return;
 
         currentPoint = e.getPoint();
 
@@ -120,8 +121,7 @@ public class DrawCanvas extends JPanel {
                     startPoint.x, startPoint.y,
                     currentPoint.x, currentPoint.y,
                     app.getCurrentColor(),
-                    app.getStrokeWidth()
-            );
+                    app.getStrokeWidth());
             shapes.add(shape);
             repaint();
             sendShape(shape);
@@ -248,7 +248,7 @@ public class DrawCanvas extends JPanel {
     private void sendShape(DrawingShape shape) {
         NetworkHandler handler = app.getNetworkHandler();
         if (handler != null && handler.isConnected()) {
-            handler.sendDrawingEvent(shape.type, shape.x1, shape.y1, shape.x2, shape.y2);
+            handler.sendDrawingEvent(shape);
         }
     }
 
@@ -306,8 +306,8 @@ public class DrawCanvas extends JPanel {
                 int topX = startPoint.x + (currentPoint.x - startPoint.x) / 2;
                 int topY = Math.min(startPoint.y, currentPoint.y);
                 int bottomY = Math.max(startPoint.y, currentPoint.y);
-                int[] xPoints = {topX, startPoint.x, currentPoint.x};
-                int[] yPoints = {topY, bottomY, bottomY};
+                int[] xPoints = { topX, startPoint.x, currentPoint.x };
+                int[] yPoints = { topY, bottomY, bottomY };
                 g2d.drawPolygon(xPoints, yPoints, 3);
             }
         }

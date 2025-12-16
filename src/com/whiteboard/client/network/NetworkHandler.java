@@ -23,7 +23,8 @@ public class NetworkHandler implements Runnable {
     private String username;
     private volatile boolean connected = false;
 
-    public NetworkHandler(String server, int port, String sessionName, String username, WhiteboardApp app) throws IOException {
+    public NetworkHandler(String server, int port, String sessionName, String username, WhiteboardApp app)
+            throws IOException {
         this.app = app;
         this.sessionName = sessionName;
         this.username = username;
@@ -81,9 +82,8 @@ public class NetworkHandler implements Runnable {
         }
     }
 
-    public void sendDrawingEvent(String type, int x1, int y1, int x2, int y2) {
+    public void sendDrawingEvent(DrawingShape shape) {
         if (connected && out != null) {
-            DrawingShape shape = new DrawingShape(type, x1, y1, x2, y2, app.getCurrentColor(), app.getStrokeWidth());
             out.println(shape.serialize());
         }
     }
@@ -106,9 +106,12 @@ public class NetworkHandler implements Runnable {
             if (out != null) {
                 out.println("DISCONNECT");
             }
-            if (in != null) in.close();
-            if (out != null) out.close();
-            if (socket != null) socket.close();
+            if (in != null)
+                in.close();
+            if (out != null)
+                out.close();
+            if (socket != null)
+                socket.close();
         } catch (IOException e) {
             System.err.println("Error during disconnect: " + e.getMessage());
         }
@@ -118,6 +121,4 @@ public class NetworkHandler implements Runnable {
         return connected && socket != null && !socket.isClosed();
     }
 
-
 }
-
