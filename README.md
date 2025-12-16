@@ -46,6 +46,35 @@ WhiteBoard/
 └── README.md
 ```
 
+## Quick Start with Docker (Recommended)
+
+The easiest way to run the application is using Docker for the server and database.
+
+### 1. Start Server and Database
+**Prerequisite:** You must have [Docker Desktop](https://www.docker.com/products/docker-desktop/) installed and running.
+
+This will create a MySQL container and a Server container, linked together.
+```bash
+docker compose up --build
+```
+*Note: If `docker compose` doesn't work, try `docker-compose up --build` (older versions).*
+
+Wait until you see `Server started on port 8000` in the logs.
+
+### 2. Run the Client
+The client is a desktop GUI application and must be run locally on your machine.
+Make sure you have Java (JDK 11+) installed.
+
+**Mac/Linux:**
+```bash
+./run_client.sh
+```
+
+**Windows:**
+You can run the commands inside `run_client.sh` manually or use an IDE like Eclipse/IntelliJ.
+
+---
+
 ## Setup Instructions
 
 ### Prerequisites

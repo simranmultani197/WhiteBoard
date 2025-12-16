@@ -7,9 +7,12 @@ import java.sql.*;
  * Provides connection to MySQL database.
  */
 public class DatabaseConnection {
-    private static final String DB_URL = "jdbc:mysql://localhost:3306/whiteboard_db";
-    private static final String DB_USER = "whiteboard_user";
-    private static final String DB_PASSWORD = "whiteboard_pass";
+    private static final String DB_URL = System.getenv("DB_URL") != null ? System.getenv("DB_URL")
+            : "jdbc:mysql://localhost:3306/whiteboard_db";
+    private static final String DB_USER = System.getenv("DB_USER") != null ? System.getenv("DB_USER")
+            : "whiteboard_user";
+    private static final String DB_PASSWORD = System.getenv("DB_PASSWORD") != null ? System.getenv("DB_PASSWORD")
+            : "whiteboard_pass";
 
     private static DatabaseConnection instance;
     private Connection connection;

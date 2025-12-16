@@ -1,0 +1,28 @@
+version: '3.8'
+
+services:
+  server:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - DB_URL=jdbc:mysql://db:3306/whiteboard_db
+      - DB_USER=whiteboard_user
+      - DB_PASSWORD=whiteboard_pass
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: mysql:8.0
+    environment:
+      - MYSQL_ROOT_PASSWORD=root
+      - MYSQL_DATABASE=whiteboard_db
+      - MYSQL_USER=whiteboard_user
+      - MYSQL_PASSWORD=whiteboard_pass
+    ports:
+      - "3307:3306"
+    healthcheck:
+      test: [ "CMD", "mysqladmin", "ping", "-h", "localhost" ]
+      timeout: 20s
+      retries: 10
